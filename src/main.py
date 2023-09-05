@@ -45,29 +45,37 @@ def read_blosum(matrix_file):
 
 def pairwise_alignment(seq1, seq2, matrix):
     # store the length of the sequences
-    n = len(seq1)
-    m = len(seq2)
+    n = len(seq1)+1
+    m = len(seq2)+1
 
     # generates a matrix of size n m
-    scores = np.zeros(m + 1, n + 1)
+    scores = np.zeros((m, n))
 
     # fill the first row and column with the gap penalty
-    for j in range(0, m + 1):
-        scores[0][j] = GAP_PENALTY * j
-
-    for i in range(0, n + 1):
+    for i in range(0, n):
         scores[0][i] = GAP_PENALTY * i
 
-    # fill the score matrix
-    for i in range (1, m+1):
-        for j in range (1, n+1):
-            alignscore = scores[i-1][j-1]+matrix[()]
+    for j in range(0, m):
+        scores[0][j] = GAP_PENALTY * j
 
+    # fill the score matrix
+    for i in range(1, n):
+        for j in range(1, m):
+            match = scores[i-1][j-1]+matrix[(seq1[i-1], seq2[j-1])]
+            gap1 = scores[i-1][j] + GAP_PENALTY
+            gap2 = scores[i][j-1] + GAP_PENALTY # index ot of bounds here??
+            scores[i][j] = max(match, gap1, gap2)
+
+    # find the maximum alignment score in the matrix
+    list_scores = scores[m, 0:n]+scores[0:m, n]
+    alignment_score = max(list_scores)
+    # TODO: kmers ?
+
+    return alignment_score
 
 
 # def calculate_score (sequences):
 # creates scores matrix
-
 
 # def create_guide_tree(sequences, matrix):
 # creates guide tree
@@ -76,4 +84,9 @@ def pairwise_alignment(seq1, seq2, matrix):
 # uses tree to align the sequences
 
 blosum62 = read_blosum("blossum_62.txt")
-print(blosum62)
+
+sequence1 = "HEAGAWGHEE"
+sequence2 = "PAWHEAE"
+
+test = pairwise_alignment(sequence1, sequence2, blosum62)
+print(test)
