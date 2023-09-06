@@ -17,7 +17,7 @@ def read_fasta(fasta_file):
                 read = read.strip()
                 sequence_list.append(read)
                 sequence = "".join(sequence_list)
-    # TODO: deal with the fact that there might be more than 1 sequence per file
+    # TODO: deal with the fact that there might be more than 1 sequence per file: dictionary
     return sequence
 
 
@@ -43,39 +43,39 @@ def read_blosum(matrix_file):
     return blosum_dict
 
 
-def pairwise_alignment(seq1, seq2, matrix):
-    # store the length of the sequences
-    n = len(seq1)+1
-    m = len(seq2)+1
+def pairwise_alignment(seq_m, seq_n, matrix):
+    # m rows, n columns as per convention
+    m = len(seq_m)
+    n = len(seq_n)
 
-    # generates a matrix of size n m
-    scores = np.zeros((m, n))
+    # generates a matrix of size n+1 m+1 to store gap penalty
+    scores = np.zeros((m+1, n+1))
 
     # fill the first row and column with the gap penalty
-    for i in range(0, n):
-        scores[0][i] = GAP_PENALTY * i
-
-    for j in range(0, m):
-        scores[0][j] = GAP_PENALTY * j
+    scores[:, 0] = [GAP_PENALTY * i for i in range(scores.shape[0])]
+    scores[0, :] = [GAP_PENALTY * i for i in range(scores.shape[1])]
 
     # fill the score matrix
-    for i in range(1, n):
-        for j in range(1, m):
-            match = scores[i-1][j-1]+matrix[(seq1[i-1], seq2[j-1])]
-            gap1 = scores[i-1][j] + GAP_PENALTY
-            gap2 = scores[i][j-1] + GAP_PENALTY # index ot of bounds here??
-            scores[i][j] = max(match, gap1, gap2)
+    for i in range(1, scores.shape[0]):
+        for j in range(1, scores.shape[1]):
+            match = scores[i-1, j-1] + matrix[(seq_m[i-1], seq_n[j-1])]
+            gap1 = scores[i-1, j] + GAP_PENALTY
+            gap2 = scores[i, j-1] + GAP_PENALTY
+            scores[i, j] = max(match, gap1, gap2)
+    print(scores)
 
     # find the maximum alignment score in the matrix
     list_scores = scores[m, 0:n]+scores[0:m, n]
     alignment_score = max(list_scores)
+    print(alignment_score)
     # TODO: kmers ?
 
-    return alignment_score
+    return scores
 
 
 # def calculate_score (sequences):
 # creates scores matrix
+
 
 # def create_guide_tree(sequences, matrix):
 # creates guide tree
@@ -84,6 +84,7 @@ def pairwise_alignment(seq1, seq2, matrix):
 # uses tree to align the sequences
 
 blosum62 = read_blosum("blossum_62.txt")
+#print(blosum62)
 
 sequence1 = "HEAGAWGHEE"
 sequence2 = "PAWHEAE"
