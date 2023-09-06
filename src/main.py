@@ -6,19 +6,16 @@ GAP_PENALTY = -4
 
 
 def read_fasta(fasta_file):
-    # code from previous python exos
+    sequence_dict = {}
     with open(fasta_file, "r") as filin:
-        sequence_list = []
+        seq_id = ""
         for line in filin:
             if line.startswith(">"):
-                pass
+                seq_id = line[1:].split()[0]
+                sequence_dict[seq_id]=""
             else:
-                read = filin.readline()
-                read = read.strip()
-                sequence_list.append(read)
-                sequence = "".join(sequence_list)
-    # TODO: deal with the fact that there might be more than 1 sequence per file: dictionary
-    return sequence
+                sequence_dict[seq_id]+=line.strip()
+    return sequence_dict
 
 
 def read_blosum(matrix_file):
@@ -43,7 +40,7 @@ def read_blosum(matrix_file):
     return blosum_dict
 
 
-def pairwise_alignment(seq_m, seq_n, matrix):
+def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
     # m rows, n columns as per convention
     m = len(seq_m)
     n = len(seq_n)
@@ -62,19 +59,24 @@ def pairwise_alignment(seq_m, seq_n, matrix):
             gap1 = scores[i-1, j] + GAP_PENALTY
             gap2 = scores[i, j-1] + GAP_PENALTY
             scores[i, j] = max(match, gap1, gap2)
-    print(scores)
 
-    # find the maximum alignment score in the matrix
-    list_scores = scores[m, 0:n]+scores[0:m, n]
-    alignment_score = max(list_scores)
-    print(alignment_score)
     # TODO: kmers ?
 
-    return scores
+    # Traceback to find the optimal alignement
+    # TODO : the traceback lol
 
 
-# def calculate_score (sequences):
-# creates scores matrix
+
+
+    if algt_score == True:
+        return scores
+    else:
+        return scores[m, n]
+
+
+def calculate_score (sequences):
+
+
 
 
 # def create_guide_tree(sequences, matrix):
