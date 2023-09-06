@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 # define main functions
 
@@ -6,15 +7,17 @@ GAP_PENALTY = -4
 
 
 def read_fasta(fasta_file):
+    seq_id_counter = 0
     sequence_dict = {}
     with open(fasta_file, "r") as filin:
         seq_id = ""
         for line in filin:
             if line.startswith(">"):
-                seq_id = line[1:].split()[0]
-                sequence_dict[seq_id]=""
+                seq_id_counter += 1
+                seq_id = seq_id_counter
+                sequence_dict[seq_id] = ""
             else:
-                sequence_dict[seq_id]+=line.strip()
+                sequence_dict[seq_id] += line.strip()
     return sequence_dict
 
 
@@ -66,17 +69,29 @@ def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
     # TODO : the traceback lol
 
 
-
-
     if algt_score == True:
         return scores
     else:
         return scores[m, n]
 
 
-def calculate_score (sequences):
+def calculate_score(sequences, matrix):
+    seq_ids = list(sequences.keys())
+    size = len(seq_ids)
 
+    # initialize the matrix with zeros
+    scores_matrix = np.zeros((size, size))
 
+    # iterate over the possible indexes
+    for i in range (size):
+        seq1 = sequences[i+1]
+        # j iterates between i+1 and size of matrix so that we only calculate the diagonal (limits compute time)
+        for j in range(i+1, size):
+            seq2 = sequences[j+1]
+            alt_score = pairwise_alignment(seq1, seq2, matrix)
+            scores_matrix[i, j] = alt_score
+    print(scores_matrix)
+    return scores_matrix
 
 
 # def create_guide_tree(sequences, matrix):
@@ -86,10 +101,7 @@ def calculate_score (sequences):
 # uses tree to align the sequences
 
 blosum62 = read_blosum("blossum_62.txt")
-#print(blosum62)
 
-sequence1 = "HEAGAWGHEE"
-sequence2 = "PAWHEAE"
+my_seqs = read_fasta("test.fasta")
+matrice = calculate_score(my_seqs, blosum62)
 
-test = pairwise_alignment(sequence1, sequence2, blosum62)
-print(test)
