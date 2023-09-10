@@ -2,6 +2,7 @@ import numpy as np
 
 # define main functions
 
+
 GAP_PENALTY = -5
 
 
@@ -146,26 +147,69 @@ def calculate_score(sequences, matrix):
         for j in range(i + 1, size):
             seq2 = sequences[j + 1]
             alt_score = pairwise_alignment(seq1, seq2, matrix)
-            scores_matrix[i, j] = alt_score
-    print(scores_matrix)
+            scores_matrix[j, i] = alt_score
+    print(scores_matrix)  # TODO delete when everything else works
     return scores_matrix
 
 
 def turn_scores_into_distance(scores_matrix):
-    dist_mat = np.zeros((scores_matrix.shape[0], scores_matrix.shape[1]))
-    maximum = scores_matrix.max()
-    minimum = np.min(scores_matrix)
-    return 1  # will come back to this later bc i'm still terribly confused
+    dist_mat = np.zeros((scores_matrix.shape[0], scores_matrix.shape[1]))  # TODO: not zeros here actually
+    maximum = np.nanmax(scores_matrix)
+    minimum = np.nanmin(scores_matrix)  # Nanamin
+
+    for i in range(scores_matrix.shape[0]):
+        for j in range(i + 1, scores_matrix.shape[1]):
+            dist_mat[j, i] = maximum - (scores_matrix[j, i] + minimum)
+
+    print(dist_mat)  # TODO delete when everything else works
+    return dist_mat
 
 
-def create_guide_tree(sequences, sc_matrix):
+def create_guide_tree(sequences, dist_matrix):
     # UPGMA method hopefully
-    tree_structure = []
-    for i in sc_matrix.shape[1]:
-        indices = np.where(sc_matrix == sc_matrix.max())
+
+    seq_ids = list(sequences.keys())
+
+    def join_rows(dist_matrix, a, b):
+        #if b < a:
+            #a, b = b, a
+
+        row = []
+        for i in range(0, a):
+            row.append((dist_matrix[i][a] + dist_matrix[i][b]) / 2)
+        dist_matrix = np.vstack([dist_matrix, row])
+
+        for i in range(a + 1, b):
+            dist_matrix[i, a] = (dist_matrix[i, a] + dist_matrix[b, i]) / 2
+
+        for i in range(b + 1, dist_matrix.shape[1]):
+            dist_matrix[i, a] = (dist_matrix[i, a] + dist_matrix[i, b]) / 2
+            del dist_matrix[i, b]
+
+        del dist_matrix[b]
+
+    def get_structure(labels, a, b):
+        #if b < a:
+            #a, b = b, a
+
+        labels[a]=(labels[a], labels[b])
+
+        del labels[b]
+
+
+    while dist_matrix.shape[0] > 1:
+        coords = np.where(dist_matrix == np.nanmin(dist_matrix)) # there's smth wrong with the where here, idk what yet (maybe bc there's 0s in the matrix still)
+        x = coords[0]
+        y = coords[1]
+        join_rows(dist_matrix,x,y)
+        get_structure(seq_ids,x,y)
+
+    return seq_ids[0]
 
     # im literally so sick rn that the very thought of coding this thing is making my headache 10 times worse
-    return 1
+    # update from sometime later: i think this tree is LITERALLY the root of my sicknesses
+    # (yes i am sick in plural)
+
 
 
 # def run_multiple_alignment(sequences, tree)
@@ -175,3 +219,7 @@ blosum62 = read_blosum("blosum_62.txt")
 
 my_seqs = read_fasta("Fichier_fasta.txt")
 matrice = calculate_score(my_seqs, blosum62)
+dist = turn_scores_into_distance(matrice)
+
+test = create_guide_tree(my_seqs,dist)
+print(test)
