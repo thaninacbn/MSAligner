@@ -74,9 +74,9 @@ def read_blosum(matrix_file):
     return blosum_dict
 
 
-def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
+def pairwise_alignment(seq_m, seq_n, blosum_matrix, algt_score=False):
     """
-    Reads a fasta file, gives each sequence an ID and stores them in a dictionary
+    Performs a global alignment on two sequences using the Needleman and Wunsch algorithm.
 
     Parameters
     ----------
@@ -86,7 +86,7 @@ def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
     seq_n: str
         Second sequence to align
 
-    matrix: dict
+    blosum_matrix: dict
         Dictionary containing scoring values from a blosum matrix read using the read_blosum() function
 
     algt_score: bool, optional
@@ -114,7 +114,7 @@ def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
     # fill the score matrix
     for i in range(1, scores.shape[0]):
         for j in range(1, scores.shape[1]):
-            match = scores[i - 1, j - 1] + matrix[(seq_m[i - 1], seq_n[j - 1])]
+            match = scores[i - 1, j - 1] + blosum_matrix[(seq_m[i - 1], seq_n[j - 1])]
             gap1 = scores[i - 1, j] + GAP_PENALTY
             gap2 = scores[i, j - 1] + GAP_PENALTY
             scores[i, j] = max(match, gap1, gap2)
@@ -133,7 +133,28 @@ def pairwise_alignment(seq_m, seq_n, matrix, algt_score=False):
         return alignment_score
 
 
-def calculate_score(sequences, matrix):
+def calculate_score(sequences, blosum_matrix):
+    """
+    Calculates the pairwise alignment scores of all non-redundant sequence pairs and stores them into a 2D numpy array.
+    Calls for the pairwise_alignment() function.
+
+    Parameters
+    ----------
+    sequences: dict
+        A dictionnary that contains the sequences to align (value) and their ID (key)
+
+    blosum_matrix: dict
+        A dictionary that contains the match-scores of all amino-acids from a blosum matrix (usually the output of the
+        read_blosum function)
+
+    Returns
+    -------
+    scores_matrix: matrix
+        A 2D numpy array that contains the alignment scores of all possible non-redundant pairs of sequences on the
+        lower triangular half, and np.nan values on the upper triangular half.
+
+    """
+
     seq_ids = list(sequences.keys())
     size = len(seq_ids)
 
@@ -146,14 +167,15 @@ def calculate_score(sequences, matrix):
         # j iterates between i+1 and size of matrix so that we only calculate the diagonal (limits compute time)
         for j in range(i + 1, size):
             seq2 = sequences[j + 1]
-            alt_score = pairwise_alignment(seq1, seq2, matrix)
+            alt_score = pairwise_alignment(seq1, seq2, blosum_matrix)
             scores_matrix[j, i] = alt_score
     print(scores_matrix)  # TODO delete when everything else works
     return scores_matrix
 
 
 def turn_scores_into_distance(scores_matrix):
-    dist_mat = np.zeros((scores_matrix.shape[0], scores_matrix.shape[1]))  # TODO: not zeros here actually
+    dist_mat = np.empty((scores_matrix.shape[0], scores_matrix.shape[1]))
+    dist_mat.fill(np.nan)
     maximum = np.nanmax(scores_matrix)
     minimum = np.nanmin(scores_matrix)  # Nanamin
 
@@ -166,53 +188,91 @@ def turn_scores_into_distance(scores_matrix):
 
 
 def create_guide_tree(sequences, dist_matrix):
-    # UPGMA method hopefully
+    """
+    Takes a distance matrix and a dictionary of sequences and creates a guide tree using the UPGMA method.
+
+    Parameters
+    ----------
+    sequences: dict
+        A dictionnary that contains the sequences to align (value) and their ID (key)
+
+    dist_matrix: matrix
+        A numpy 2D array containing the distances between each sequence. This matrix should be lower-diagonal. Usually
+        the output of the turn_scores_into_distances() function.
+
+    Returns
+    -------
+    tree_structure : tuple
+        The structure of the UPGMA guide tree in the form of a tuple of tuples.
+
+    """
 
     seq_ids = list(sequences.keys())
+    distances = dist_matrix.tolist()  # literally lost my mind and decided to drop the np arrays for the time being
 
-    def join_rows(dist_matrix, a, b):
-        #if b < a:
-            #a, b = b, a
+    def get_lowest_value(matrix):
+        # est ce que je dois faire des docstring pour ces inner fonctions ? vu qu'elles sont pas accessible
+        # set the default lowest possible value to some ridiculously high value
+        min_cell = float("inf")
+        x, y = -1, -1
 
-        row = []
+        for i in range(len(matrix)):
+            for j in range(len(matrix[i])):
+                # updates the coordinates if the value in the cell is lower than the one currently stored
+                if matrix[i][j] < min_cell:
+                    min_cell = matrix[i][j]
+                    x, y = i, j
+
+        return x, y
+
+    def merge_seq_ids(seq_list, a, b):
+        if b < a:
+            a, b = b, a
+
+        # orders the sequences in a tuple
+        seq_list[a] = (seq_list[a], seq_list[b])
+        del seq_list[b]
+
+    def reduce_matrix(matrix, a, b):
+        # index out of range error if this isn't there
+        if b < a:
+            a, b = b, a
+
+        # updates all the coordinates with the arithmetic mean of the a and b indices
+        new_row = []
         for i in range(0, a):
-            row.append((dist_matrix[i][a] + dist_matrix[i][b]) / 2)
-        dist_matrix = np.vstack([dist_matrix, row])
+            new_row.append((matrix[a][i] + matrix[b][i]) / 2)
+        matrix[a] = new_row
 
         for i in range(a + 1, b):
-            dist_matrix[i, a] = (dist_matrix[i, a] + dist_matrix[b, i]) / 2
+            matrix[i][a] = (matrix[i][a] + matrix[b][i]) / 2
 
-        for i in range(b + 1, dist_matrix.shape[1]):
-            dist_matrix[i, a] = (dist_matrix[i, a] + dist_matrix[i, b]) / 2
-            del dist_matrix[i, b]
+        for i in range(b + 1, len(matrix)):
+            matrix[i][a] = (matrix[i][a] + matrix[i][b]) / 2
+            del matrix[i][b]
 
-        del dist_matrix[b]
+        del matrix[b]
 
-    def get_structure(labels, a, b):
-        #if b < a:
-            #a, b = b, a
+    def run_UPGMA(matrix, seq_list):
 
-        labels[a]=(labels[a], labels[b])
+        while len(seq_list) > 1:
+            x, y = get_lowest_value(seq_list)
+            reduce_matrix(matrix, x, y)
+            merge_seq_ids(seq_list, x, y)
+        return seq_list[0]
 
-        del labels[b]
-
-
-    while dist_matrix.shape[0] > 1:
-        coords = np.where(dist_matrix == np.nanmin(dist_matrix)) # there's smth wrong with the where here, idk what yet (maybe bc there's 0s in the matrix still)
-        x = coords[0]
-        y = coords[1]
-        join_rows(dist_matrix,x,y)
-        get_structure(seq_ids,x,y)
-
-    return seq_ids[0]
+    tree_structure = run_UPGMA(distances, seq_ids)
+    return tree_structure
 
     # im literally so sick rn that the very thought of coding this thing is making my headache 10 times worse
     # update from sometime later: i think this tree is LITERALLY the root of my sicknesses
     # (yes i am sick in plural)
 
 
+def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
+    return 1
 
-# def run_multiple_alignment(sequences, tree)
+
 # uses tree to align the sequences
 
 blosum62 = read_blosum("blosum_62.txt")
@@ -221,5 +281,5 @@ my_seqs = read_fasta("Fichier_fasta.txt")
 matrice = calculate_score(my_seqs, blosum62)
 dist = turn_scores_into_distance(matrice)
 
-test = create_guide_tree(my_seqs,dist)
+test = create_guide_tree(my_seqs, dist)
 print(test)
