@@ -75,7 +75,7 @@ def read_blosum(matrix_file):
     return blosum_dict
 
 
-def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=False):
+def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback='no'):
     """
     Performs a global alignment on two sequences using the Needleman and Wunsch algorithm.
 
@@ -100,7 +100,7 @@ def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=False):
     alignment_score: int
         Alignement score of the two sequences
 
-    alignmed_seq : list
+    aligned_seq : str
         List containing the aligned sequences (seq_m as index 0 and seq_n as index 1)
         returned only if argument traceback is set to True
 
@@ -127,7 +127,7 @@ def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=False):
 
     alignment_score = scores[m, n]
 
-    if traceback == False:
+    if traceback == 'no':
         return alignment_score
     else:
 
@@ -346,6 +346,12 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
                 tree_list.append(item)
         return tree_list
 
+    def sum_scores(algt_list, seq_2, position_i, position_j):
+        score = 0
+        for seq in algt_list:
+            score += blosum_matrix[(seq[position_i], seq_2[position_j])]
+        return score
+
     flat_tree = flatten_tree(tree)
 
     index_m = flat_tree[0]
@@ -353,10 +359,35 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
     seq_m = sequence_dict[index_m]
     seq_n = sequence_dict[index_n]
 
-    start_align = pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=True)
+    alignment_list = pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback='yes') # i think we might need to traceback in separate fct
 
-    for i in range(2, len(flat_tree)):
-        seq_n = sequence_dict[i]
+    for a in range(2, len(flat_tree)):
+        seq_n = sequence_dict[a]
+
+        # m rows, n columns as per convention again
+        m = max(alignment_list, key = len)
+        n = len(seq_n)
+
+        scores = np.zeros((m + 1, n + 1))
+        scores[:, 0] = [GAP_PENALTY * i for i in range(scores.shape[0])]
+        scores[0, :] = [GAP_PENALTY * i for i in range(scores.shape[1])]
+
+        # filling the matrix
+        for i in range(1, scores.shape[0]):
+            for j in range(1, scores.shape[1]):
+                match = scores[i - 1, j - 1] + sum_scores(alignment_list, seq_n, i-1, j-1)
+                gap1 = scores[i - 1, j] + GAP_PENALTY
+                gap2 = scores[i, j - 1] + GAP_PENALTY
+                scores[i, j] = max(match, gap1, gap2)
+
+        # traceback
+        # this is going to be painful btw
+
+
+
+
+
+
 
 
     return 1
