@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 
 # define main functions
@@ -74,7 +75,7 @@ def read_blosum(matrix_file):
     return blosum_dict
 
 
-def pairwise_alignment(seq_m, seq_n, blosum_matrix, algt_score=False):
+def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=False):
     """
     Performs a global alignment on two sequences using the Needleman and Wunsch algorithm.
 
@@ -89,14 +90,19 @@ def pairwise_alignment(seq_m, seq_n, blosum_matrix, algt_score=False):
     blosum_matrix: dict
         Dictionary containing scoring values from a blosum matrix read using the read_blosum() function
 
-    algt_score: bool, optional
-
+    traceback: bool, optional
+        If set to true, returns the alignment (as a list of strings) of the 2 sequences
+        Default = false
 
 
     Returns
     -------
     alignment_score: int
         Alignement score of the two sequences
+
+    alignmed_seq : list
+        List containing the aligned sequences (seq_m as index 0 and seq_n as index 1)
+        returned only if argument traceback is set to True
 
     """
 
@@ -121,16 +127,55 @@ def pairwise_alignment(seq_m, seq_n, blosum_matrix, algt_score=False):
 
     alignment_score = scores[m, n]
 
-    # TODO: kmers ?
-
-    # Traceback to find the optimal alignement
-    # TODO : the traceback lol
-
-    # me trying to be smart and have 1 function do multiple things
-    if algt_score == True:
-        return scores
-    else:
+    if traceback == False:
         return alignment_score
+    else:
+
+        # Traceback to find the optimal alignment
+
+        align_m = ""
+        align_n = ""
+
+        # starting point in the bottom right cell in the matrix
+        i = m
+        j = n
+
+        while i > 0 and j > 0:
+            current_score = scores[i, j]
+            diagonal_score = scores[i - 1, j - 1]
+            upwards_score = scores[i, j - 1]
+            left_score = scores[i - 1, j]
+
+            # check which cell the current score comes from, update i and j accordingly
+            if current_score == diagonal_score + blosum_matrix[(seq_m[i - 1], seq_n[j - 1])]:
+                align_m += seq_m[i - 1]
+                align_n += seq_n[j - 1]
+                i -= 1
+                j -= 1
+            elif current_score == upwards_score + GAP_PENALTY:
+                align_n += seq_n[j - 1]
+                align_m += '-'
+                j -= 1
+            elif current_score == left_score + GAP_PENALTY:
+                align_n += '-'
+                align_m += seq_m[i - 1]
+                i -= 1
+
+        while j > 0:
+            align_n += seq_n[j - 1]
+            align_m += '-'
+            j -= 1
+        while i > 0:
+            align_n += '-'
+            align_m += seq_m[i - 1]
+            i -= 1
+
+        align_m = align_m[::-1]
+        align_n = align_n[::-1]
+
+        aligned_seq = [align_m, align_n]
+
+        return aligned_seq
 
 
 def calculate_score(sequences, blosum_matrix):
@@ -159,7 +204,8 @@ def calculate_score(sequences, blosum_matrix):
     size = len(seq_ids)
 
     # initialize the matrix with zeros
-    scores_matrix = np.zeros((size, size))
+    scores_matrix = np.empty((size, size))
+    scores_matrix.fill(np.nan)
 
     # iterate over the possible indexes
     for i in range(size):
@@ -174,11 +220,31 @@ def calculate_score(sequences, blosum_matrix):
 
 
 def turn_scores_into_distance(scores_matrix):
+    """
+    Turns a scores matrix into a distances matrix
+
+    Parameters
+    ----------
+    scores_matrix: matrix
+        A numpy 2D matrix that contains the pairwise alignment scores of the sequences on the lower triangular half.
+        Usually the result of calling the function calculate_score().
+
+    Returns
+    ----------
+    dist_mat : matrix
+        A 2D numpy matrix containing the distance between the sequences in the lower triangular half and np.nan in
+        the upper triangular half.
+
+    """
+
+    # initialize the matrix to the same size as the scores matrix
     dist_mat = np.empty((scores_matrix.shape[0], scores_matrix.shape[1]))
     dist_mat.fill(np.nan)
+    # set the min and max values from the scores matrix
     maximum = np.nanmax(scores_matrix)
     minimum = np.nanmin(scores_matrix)  # Nanamin
 
+    # fill the distance matrix
     for i in range(scores_matrix.shape[0]):
         for j in range(i + 1, scores_matrix.shape[1]):
             dist_mat[j, i] = maximum - (scores_matrix[j, i] + minimum)
@@ -253,15 +319,15 @@ def create_guide_tree(sequences, dist_matrix):
 
         del matrix[b]
 
-    def run_UPGMA(matrix, seq_list):
+    def run_upgma(matrix, seq_list):
 
         while len(seq_list) > 1:
-            x, y = get_lowest_value(seq_list)
+            x, y = get_lowest_value(matrix)
             reduce_matrix(matrix, x, y)
             merge_seq_ids(seq_list, x, y)
         return seq_list[0]
 
-    tree_structure = run_UPGMA(distances, seq_ids)
+    tree_structure = run_upgma(distances, seq_ids)
     return tree_structure
 
     # im literally so sick rn that the very thought of coding this thing is making my headache 10 times worse
@@ -270,6 +336,29 @@ def create_guide_tree(sequences, dist_matrix):
 
 
 def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
+    # flattens the tree to reduce complexity bc i don't have time for this anymore
+    def flatten_tree(tree_tuple):
+        tree_list = []
+        for item in tree_tuple:
+            if isinstance(item, tuple):
+                flatten_tree(item)
+            else:
+                tree_list.append(item)
+        return tree_list
+
+    flat_tree = flatten_tree(tree)
+
+    index_m = flat_tree[0]
+    index_n = flat_tree[1]
+    seq_m = sequence_dict[index_m]
+    seq_n = sequence_dict[index_n]
+
+    start_align = pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback=True)
+
+    for i in range(2, len(flat_tree)):
+        seq_n = sequence_dict[i]
+
+
     return 1
 
 
@@ -277,9 +366,10 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
 
 blosum62 = read_blosum("blosum_62.txt")
 
-my_seqs = read_fasta("Fichier_fasta.txt")
-matrice = calculate_score(my_seqs, blosum62)
-dist = turn_scores_into_distance(matrice)
+my_seqs = read_fasta("melanie.fasta")
+mat_scores = calculate_score(my_seqs, blosum62)
 
-test = create_guide_tree(my_seqs, dist)
-print(test)
+sequence1 = "HEAGAWGHEEPAH"
+sequence2 = "PAWHEAE"
+
+# test = pairwise_alignment(sequence1, sequence2, blosum62)
