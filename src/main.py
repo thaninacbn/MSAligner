@@ -1,9 +1,6 @@
 import argparse
 import numpy as np
 
-# define main functions
-
-
 GAP_PENALTY = -5
 
 
@@ -110,7 +107,7 @@ def pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback='no'):
     m = len(seq_m)
     n = len(seq_n)
 
-    # generates a matrix of size n+1 m+1 to store gap penalty
+    # generates a matrix of size n+1 m+1
     scores = np.zeros((m + 1, n + 1))
 
     # fill the first row and column with the gap penalty
@@ -328,6 +325,7 @@ def create_guide_tree(sequences, dist_matrix):
         return seq_list[0]
 
     tree_structure = run_upgma(distances, seq_ids)
+    print(tree_structure)
     return tree_structure
 
     # im literally so sick rn that the very thought of coding this thing is making my headache 10 times worse
@@ -338,34 +336,40 @@ def create_guide_tree(sequences, dist_matrix):
 def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
     # flattens the tree to reduce complexity bc i don't have time for this anymore
     def flatten_tree(tree_tuple):
-        tree_list = []
-        for item in tree_tuple:
-            if isinstance(item, tuple):
-                flatten_tree(item)
+        for x in tree_tuple:
+            if isinstance(x, tuple):
+                yield from flatten_tree(x)
             else:
-                tree_list.append(item)
-        return tree_list
+                yield x
 
     def sum_scores(algt_list, seq_2, position_i, position_j):
         score = 0
+        # compare aligned sequences to the new sequence to align
         for seq in algt_list:
-            score += blosum_matrix[(seq[position_i], seq_2[position_j])]
+            score += (blosum_matrix[(seq[position_i], seq_2[position_j])])
+        # compare amino acids from aligned sequences to other aligned sequences
+        for i in range(len(algt_list)):
+            seq1 = algt_list[i]
+            for j in range(i + 1, len(algt_list)):
+                seq2 = algt_list[j]
+                score += blosum_matrix[(seq1[position_i], seq2[position_i])]
         return score
 
-    flat_tree = flatten_tree(tree)
+    flat_tree = list(flatten_tree(tree))
 
     index_m = flat_tree[0]
     index_n = flat_tree[1]
     seq_m = sequence_dict[index_m]
     seq_n = sequence_dict[index_n]
 
-    alignment_list = pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback='yes') # i think we might need to traceback in separate fct
+    alignment_list = pairwise_alignment(seq_m, seq_n, blosum_matrix,
+                                        traceback='yes')  # i think we might need to traceback in separate fct
 
     for a in range(2, len(flat_tree)):
         seq_n = sequence_dict[a]
 
         # m rows, n columns as per convention again
-        m = max(alignment_list, key = len)
+        m = len(max(alignment_list, key=len))
         n = len(seq_n)
 
         scores = np.zeros((m + 1, n + 1))
@@ -375,32 +379,84 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
         # filling the matrix
         for i in range(1, scores.shape[0]):
             for j in range(1, scores.shape[1]):
-                match = scores[i - 1, j - 1] + sum_scores(alignment_list, seq_n, i-1, j-1)
+                match = scores[i - 1, j - 1] + sum_scores(alignment_list, seq_n, i - 1, j - 1)
                 gap1 = scores[i - 1, j] + GAP_PENALTY
                 gap2 = scores[i, j - 1] + GAP_PENALTY
                 scores[i, j] = max(match, gap1, gap2)
 
         # traceback
-        # this is going to be painful btw
+        align_m = [''] * len(alignment_list)
+        align_n = ''
 
+        # starting point at the bottom right cell
+        i = m
+        j = n
 
+        while i > 0 and j > 0:
+            current_score = scores[i, j]
+            diagonal_score = scores[i - 1, j - 1]
+            upwards_score = scores[i, j - 1]
+            left_score = scores[i - 1, j]
 
+            # check which cell the current score comes from, update i and j accordingly
+            if current_score == diagonal_score + sum_scores(alignment_list, seq_n, i - 1, j - 1):
+                for k in range(len(align_m)):
+                    seq_tmp = alignment_list[k]
+                    align_m[k] += seq_tmp[i - 1]
+                align_n += seq_n[j - 1]
+                i -= 1
+                j -= 1
+            elif current_score == upwards_score + GAP_PENALTY:
+                align_n += seq_n[j - 1]
+                align_m = [seq + '-' for seq in align_m]
+                j -= 1
+            elif current_score == left_score + GAP_PENALTY:
+                align_n += '-'
+                for k in range(len(align_m)):
+                    seq_tmp = alignment_list[k]
+                    align_m[k] += seq_tmp[i - 1]
+                i -= 1
 
+        while j > 0:
+            align_n += seq_n[j - 1]
+            align_m = [seq + '-' for seq in align_m]
+            j -= 1
+        while i > 0 :
+            align_n += '-'
+            for k in range(len(align_m)):
+                seq_tmp = alignment_list[k]
+                align_m[k] += seq_tmp[i - 1]
+            i -= 1
 
+        align_m = [k[::-1] for k in align_m]
+        align_n = align_n[::-1]
 
+        del alignment_list
+        alignment_list = align_m
+        alignment_list.append(align_n)
 
-
-    return 1
+    return alignment_list
 
 
 # uses tree to align the sequences
 
 blosum62 = read_blosum("blosum_62.txt")
 
-my_seqs = read_fasta("melanie.fasta")
+my_seqs = read_fasta("test.fasta")
+
 mat_scores = calculate_score(my_seqs, blosum62)
+mat_dist = turn_scores_into_distance(mat_scores)
+guide_tree = create_guide_tree(my_seqs, mat_dist)
+msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
+
+for item in msa:
+    print(item)
+
+#OMG IT WORKS IM SO INSANE IT WORKS IT ACTUALLY WORKS HOLDS MY HEAD
+
 
 sequence1 = "HEAGAWGHEEPAH"
 sequence2 = "PAWHEAE"
+
 
 # test = pairwise_alignment(sequence1, sequence2, blosum62)
