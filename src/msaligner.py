@@ -1,6 +1,6 @@
 import numpy as np
 import argparse
-import os
+import time
 
 GAP_PENALTY = -5
 
@@ -333,7 +333,7 @@ def create_guide_tree(sequences, dist_matrix):
 
     tree_structure = run_upgma(distances, seq_ids)
     print("Done!")
-    print(tree_structure)
+    print(f"Tree structure : \n {tree_structure}")
     return tree_structure
 
 
@@ -478,15 +478,19 @@ parser.add_argument( "output_file", type=str,
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    blosum62 = read_blosum("blosum_62.txt")
+    start = time.time()
+
+    blosum62 = read_blosum("../data/blosum_62.txt")
     my_seqs = read_fasta(args.fasta_file)
     matrix_scores = calculate_score(my_seqs, blosum62)
     matrix_dist = turn_scores_into_distance(matrix_scores)
     guide_tree = create_guide_tree(my_seqs, matrix_dist)
     msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
+
     with open(args.output_file, "w") as filout:
         for item in msa:
             filout.write(item)
             filout.write("\n")
 
-
+    end = time.time()
+    print(f"execution time : {end-start}")

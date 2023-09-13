@@ -2,6 +2,11 @@
 
 A multiple sequence aligner written in python 🐍
 
+Student project for the Python programming class of the Msc in Bioinformatics at the University of Paris Cité
+
+MSAligner is a simple re-implementation of Clustal and uses dynamic programming and a guide UPGMA tree to 
+quickly align protein sequences.
+
 ## Setting things up
 
 Clone this repository in your local machine
@@ -23,9 +28,11 @@ conda activate mseqalign
 ```
 
 
-Run the aligner in default mode
+## Getting started 
 
+To run the aligner in default mode, cd into the src directory and simply call from the command line:
 ````
-python msaligner.py 
+python msaligner.py path/to/sequences.fasta path/to/output.txt
 ````
 
+The output file will be a plain .txt file containing your aligned sequences: each line corresponds to a sequence!
