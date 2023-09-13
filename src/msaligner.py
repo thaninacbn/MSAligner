@@ -1,6 +1,6 @@
-import argparse
 import numpy as np
 import sys
+import os
 
 GAP_PENALTY = -5
 
@@ -204,10 +204,12 @@ def calculate_score(sequences, blosum_matrix):
     size = len(seq_ids)
 
     # initialize the matrix with zeros
+    print("Initializing scores matrix...")
     scores_matrix = np.empty((size, size))
     scores_matrix.fill(np.nan)
 
     # iterate over the possible indexes
+    print("Running pairwise alignments")
     for i in range(size):
         seq1 = sequences[i + 1]
         # j iterates between i+1 and size of matrix so that we only calculate the diagonal (limits compute time)
@@ -215,7 +217,7 @@ def calculate_score(sequences, blosum_matrix):
             seq2 = sequences[j + 1]
             alt_score = pairwise_alignment(seq1, seq2, blosum_matrix)
             scores_matrix[j, i] = alt_score
-    print(scores_matrix)  # TODO delete when everything else works
+    print("Done!")
     return scores_matrix
 
 
@@ -238,6 +240,7 @@ def turn_scores_into_distance(scores_matrix):
     """
 
     # initialize the matrix to the same size as the scores matrix
+    print("Initializing distances matrix")
     dist_mat = np.empty((scores_matrix.shape[0], scores_matrix.shape[1]))
     dist_mat.fill(np.nan)
     # set the min and max values from the scores matrix
@@ -245,11 +248,12 @@ def turn_scores_into_distance(scores_matrix):
     minimum = np.nanmin(scores_matrix)  # Nanamin
 
     # fill the distance matrix
+    print("Filling distances matrix")
     for i in range(scores_matrix.shape[0]):
         for j in range(i + 1, scores_matrix.shape[1]):
             dist_mat[j, i] = maximum - (scores_matrix[j, i] + minimum)
 
-    print(dist_mat)  # TODO delete when everything else works
+    print("Done!")
     return dist_mat
 
 
@@ -275,6 +279,7 @@ def create_guide_tree(sequences, dist_matrix):
 
     seq_ids = list(sequences.keys())
     distances = dist_matrix.tolist()  # literally lost my mind and decided to drop the np arrays for the time being
+    print("Running UPGMA Algorithm")
 
     def get_lowest_value(matrix):
         # est ce que je dois faire des docstring pour ces inner fonctions ? vu qu'elles sont pas accessible
@@ -328,12 +333,9 @@ def create_guide_tree(sequences, dist_matrix):
         return seq_list[0]
 
     tree_structure = run_upgma(distances, seq_ids)
+    print("Done!")
     print(tree_structure)
     return tree_structure
-
-    # im literally so sick rn that the very thought of coding this thing is making my headache 10 times worse
-    # update from sometime later: i think this tree is LITERALLY the root of my sicknesses
-    # (yes i am sick in plural)
 
 
 def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
@@ -359,16 +361,18 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
         return score
 
     flat_tree = list(flatten_tree(tree))
+    print("Flattening the tree...")
 
     index_m = flat_tree[0]
     index_n = flat_tree[1]
     seq_m = sequence_dict[index_m]
     seq_n = sequence_dict[index_n]
 
-    alignment_list = pairwise_alignment(seq_m, seq_n, blosum_matrix,
-                                        traceback='yes')  # i think we might need to traceback in separate fct
+    print("Running pairwise alignment bewteen closest sequences...")
+    alignment_list = pairwise_alignment(seq_m, seq_n, blosum_matrix, traceback='yes')
 
     for a in range(2, len(flat_tree)):
+        print(f"Adding sequence {a} to existing alignment")
         seq_n = sequence_dict[a]
 
         # m rows, n columns as per convention again
@@ -424,7 +428,7 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
             align_n += seq_n[j - 1]
             align_m = [seq + '-' for seq in align_m]
             j -= 1
-        while i > 0 :
+        while i > 0:
             align_n += '-'
             for k in range(len(align_m)):
                 seq_tmp = alignment_list[k]
@@ -437,11 +441,15 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
         del alignment_list
         alignment_list = align_m
         alignment_list.append(align_n)
+        print("Done!")
 
+    print("Multiple sequence alignment successfully completed!")
     return alignment_list
 
 
 # uses tree to align the sequences
+
+
 
 blosum62 = read_blosum("blosum_62.txt")
 
@@ -455,11 +463,12 @@ msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
 for item in msa:
     print(item)
 
-#OMG IT WORKS IM SO INSANE IT WORKS IT ACTUALLY WORKS HOLDS MY HEAD
+
+
+# OMG IT WORKS IM SO INSANE IT WORKS IT ACTUALLY WORKS HOLDS MY HEAD
 
 
 sequence1 = "HEAGAWGHEEPAH"
 sequence2 = "PAWHEAE"
-
 
 # test = pairwise_alignment(sequence1, sequence2, blosum62)
