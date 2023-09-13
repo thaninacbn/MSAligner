@@ -4,7 +4,7 @@ A multiple sequence aligner written in python 🐍
 
 Student project for the Python programming class of the Msc in Bioinformatics at the University of Paris Cité
 
-MSAligner is a simple re-implementation of Clustal and uses dynamic programming and a guide UPGMA tree to 
+MSAligner is a simplified re-implementation of Clustal and uses dynamic programming and a guide UPGMA tree to 
 quickly align protein sequences.
 
 ## Setting things up
