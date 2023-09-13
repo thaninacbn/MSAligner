@@ -1,3 +1,22 @@
+"""
+MSAligner: A python implementation of the Clustal algorithm for multiple sequence alignment of proteins
+
+Usage:
+======
+    python msaligner.py sequence.fasta output.txt
+
+    sequence.fasta : path to fasta file containing the sequences to align
+    output.txt: path to output file
+
+"""
+
+__authors__ = "Thanina CHABANE"
+__contact__ = "thanina.chabane@etu.u-paris.fr"
+__date__ = "2023-09-13"
+__version__ = "1.0.0"
+
+import os.path
+
 import numpy as np
 import argparse
 import time
@@ -239,8 +258,9 @@ def turn_scores_into_distance(scores_matrix):
 
     """
 
-    # initialize the matrix to the same size as the scores matrix
     print("Initializing distances matrix")
+
+    # initialize the matrix to the same size as the scores matrix
     dist_mat = np.empty((scores_matrix.shape[0], scores_matrix.shape[1]))
     dist_mat.fill(np.nan)
     # set the min and max values from the scores matrix
@@ -456,9 +476,11 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
                 align_m[k] += seq_tmp[i - 1]
             i -= 1
 
+        # reverse the strings since we traced back from the last position
         align_m = [k[::-1] for k in align_m]
         align_n = align_n[::-1]
 
+        # update the alignment (alignment rly should be an iterable class instead)
         del alignment_list
         alignment_list = align_m
         alignment_list.append(align_n)
@@ -468,29 +490,34 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
     return alignment_list
 
 
-# uses tree to align the sequences
-
+# Initialize parser
 parser = argparse.ArgumentParser(description="Multiple Sequence Aligner")
 parser.usage = "msaligner.py sequences.fasta output.txt"
+#Set the arguments : fasta file and output
 parser.add_argument("fasta_file", type=str, help="Path to file containing fasta sequences to align")
-parser.add_argument( "output_file", type=str,
+parser.add_argument("output_file", type=str,
                     help="Path to the output file")
 args = parser.parse_args()
 
 if __name__ == "__main__":
     start = time.time()
-
+    #run script
     blosum62 = read_blosum("../data/blosum_62.txt")
     my_seqs = read_fasta(args.fasta_file)
     matrix_scores = calculate_score(my_seqs, blosum62)
     matrix_dist = turn_scores_into_distance(matrix_scores)
     guide_tree = create_guide_tree(my_seqs, matrix_dist)
     msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
+    outdir = "../out/"
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    outfile = outdir + args.output_file
 
-    with open(args.output_file, "w") as filout:
+
+    with open(outfile, "w") as filout:
         for item in msa:
             filout.write(item)
             filout.write("\n")
 
     end = time.time()
-    print(f"execution time : {end-start}")
+    print(f"execution time : {end - start}")
