@@ -1,5 +1,5 @@
 import numpy as np
-import sys
+import argparse
 import os
 
 GAP_PENALTY = -5
@@ -282,7 +282,6 @@ def create_guide_tree(sequences, dist_matrix):
     print("Running UPGMA Algorithm")
 
     def get_lowest_value(matrix):
-        # est ce que je dois faire des docstring pour ces inner fonctions ? vu qu'elles sont pas accessible
         # set the default lowest possible value to some ridiculously high value
         min_cell = float("inf")
         x, y = -1, -1
@@ -339,7 +338,29 @@ def create_guide_tree(sequences, dist_matrix):
 
 
 def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
-    # flattens the tree to reduce complexity bc i don't have time for this anymore
+    """
+        Runs a multiple sequence alignment on all the parsed sequences in the fasta file.
+
+        Parameters
+        ----------
+        sequence_dict: dict
+            A dictionnary that contains the sequences to align (value) and their ID (key)
+
+        tree: tuple
+            The UPGMA guide tree structure in the form of nested tuples
+
+        blosum_matrix: dict
+            Dictionary containing scoring values from a blosum matrix read using the read_blosum() function
+
+
+        Returns
+        -------
+        alignment_list : list
+            A list containing all the sequences aligned in the order provided by the guide tree
+
+
+        """
+
     def flatten_tree(tree_tuple):
         for x in tree_tuple:
             if isinstance(x, tuple):
@@ -449,26 +470,23 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
 
 # uses tree to align the sequences
 
+parser = argparse.ArgumentParser(description="Multiple Sequence Aligner")
+parser.usage = "msaligner.py sequences.fasta output.txt"
+parser.add_argument("fasta_file", type=str, help="Path to file containing fasta sequences to align")
+parser.add_argument( "output_file", type=str,
+                    help="Path to the output file")
+args = parser.parse_args()
+
+if __name__ == "__main__":
+    blosum62 = read_blosum("blosum_62.txt")
+    my_seqs = read_fasta(args.fasta_file)
+    matrix_scores = calculate_score(my_seqs, blosum62)
+    matrix_dist = turn_scores_into_distance(matrix_scores)
+    guide_tree = create_guide_tree(my_seqs, matrix_dist)
+    msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
+    with open(args.output_file, "w") as filout:
+        for item in msa:
+            filout.write(item)
+            filout.write("\n")
 
 
-blosum62 = read_blosum("blosum_62.txt")
-
-my_seqs = read_fasta("melanie.fasta")
-
-mat_scores = calculate_score(my_seqs, blosum62)
-mat_dist = turn_scores_into_distance(mat_scores)
-guide_tree = create_guide_tree(my_seqs, mat_dist)
-msa = run_multiple_alignment(my_seqs, guide_tree, blosum62)
-
-for item in msa:
-    print(item)
-
-
-
-# OMG IT WORKS IM SO INSANE IT WORKS IT ACTUALLY WORKS HOLDS MY HEAD
-
-
-sequence1 = "HEAGAWGHEEPAH"
-sequence2 = "PAWHEAE"
-
-# test = pairwise_alignment(sequence1, sequence2, blosum62)
