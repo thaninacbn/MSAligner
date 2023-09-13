@@ -15,8 +15,7 @@ __contact__ = "thanina.chabane@etu.u-paris.fr"
 __date__ = "2023-09-13"
 __version__ = "1.0.0"
 
-import os.path
-
+import os
 import numpy as np
 import argparse
 import time
@@ -420,6 +419,7 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
         m = len(max(alignment_list, key=len))
         n = len(seq_n)
 
+        # the comeback of np arrays: initialising scores matrix as per NW algorithm
         scores = np.zeros((m + 1, n + 1))
         scores[:, 0] = [GAP_PENALTY * i for i in range(scores.shape[0])]
         scores[0, :] = [GAP_PENALTY * i for i in range(scores.shape[1])]
@@ -493,7 +493,7 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
 # Initialize parser
 parser = argparse.ArgumentParser(description="Multiple Sequence Aligner")
 parser.usage = "msaligner.py sequences.fasta output.txt"
-#Set the arguments : fasta file and output
+# Set the arguments : fasta file and output
 parser.add_argument("fasta_file", type=str, help="Path to file containing fasta sequences to align")
 parser.add_argument("output_file", type=str,
                     help="Path to the output file")
@@ -501,7 +501,7 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     start = time.time()
-    #run script
+    # run script
     blosum62 = read_blosum("../data/blosum_62.txt")
     my_seqs = read_fasta(args.fasta_file)
     matrix_scores = calculate_score(my_seqs, blosum62)
@@ -512,7 +512,6 @@ if __name__ == "__main__":
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     outfile = outdir + args.output_file
-
 
     with open(outfile, "w") as filout:
         for item in msa:

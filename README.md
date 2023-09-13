@@ -88,7 +88,7 @@ There are seven functions you can call from MSAligner:
 
 ``read_fasta()`` and ``read_blosum()``: read a fasta file and a blosum matrix respectively. Both return dictionaries
 
-``pairwise_alignment()``: takes 2 sequences as an input, a blossum matrix and asks you if you wish
+``pairwise_alignment()``: takes 2 sequences as an input, a blosum matrix and asks you if you wish
 to proceed to traceback (traceback="yes" or "no"). Performs the pairwise alignment of these two sequences
 according to the Needleman and Wunsch algorithm.
 
