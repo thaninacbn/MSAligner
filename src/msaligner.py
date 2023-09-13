@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import sys
 
 GAP_PENALTY = -5
 
@@ -19,11 +20,11 @@ def read_fasta(fasta_file):
         Dictionary with key = sequence ID (int, attributed from 1 to n= number of sequences) and value = sequence
 
     """
-
     seq_id_counter = 0
     # will store sequences in a dictionary
     sequence_dict = {}
     with open(fasta_file, "r") as filin:
+        print(f"Reading fasta sequences from {fasta_file}...")
         seq_id = ""
         for line in filin:
             if line.startswith(">"):
@@ -33,6 +34,7 @@ def read_fasta(fasta_file):
                 sequence_dict[seq_id] = ""
             else:
                 sequence_dict[seq_id] += line.strip()
+    print("Done!")
     return sequence_dict
 
 
@@ -54,6 +56,7 @@ def read_blosum(matrix_file):
     # initialize the dictionary
     blosum_dict = {}
     with open(matrix_file, "r") as filein:
+        print(f"Reading blosum matrix from {matrix_file}...")
         lines = filein.readlines()
 
     # Creates a list of AA from the first line of the file
@@ -68,7 +71,7 @@ def read_blosum(matrix_file):
             key = (amino_acid1, amino_acid2)
             value = int(content[i + 1])
             blosum_dict[key] = value
-
+    print("Done!")
     return blosum_dict
 
 
@@ -442,7 +445,7 @@ def run_multiple_alignment(sequence_dict, tree, blosum_matrix):
 
 blosum62 = read_blosum("blosum_62.txt")
 
-my_seqs = read_fasta("test.fasta")
+my_seqs = read_fasta("melanie.fasta")
 
 mat_scores = calculate_score(my_seqs, blosum62)
 mat_dist = turn_scores_into_distance(mat_scores)
